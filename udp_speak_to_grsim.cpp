@@ -4,14 +4,23 @@
 #include <boost/thread/thread.hpp>
 #include <boost/array.hpp>
 
-#include "pb/grSim_Packet.pb.h"
-#include "pb/grSim_Commands.pb.h"
-#include "pb/grSim_Replacement.pb.h"
+
+
+#include "grSim_Packet.pb.h"
+#include "grSim_Commands.pb.h"
+#include "grSim_Replacement.pb.h"
+
 
 using namespace std;
 using namespace boost;
 using namespace boost::asio;
 using byte = unsigned char;
+
+
+
+void delay(int delay_ms) {
+    this_thread::sleep_for(boost::chrono::milliseconds(delay_ms));
+}
 
 
 class GrSim_Console{
@@ -24,14 +33,13 @@ private:
     io_service *service;
     udp::endpoint *endpoint;
     socket_ptr socket;
-    string to_send;
 
 
 public:
     GrSim_Console(io_service& ios, udp::endpoint& ep) {
         this->service = &ios;
         this->endpoint = &ep;
-        socket = socket_ptr(new ip::udp::socket(ios));
+        socket = socket_ptr(new udp::socket(ios));
         socket->open(udp::v4());
     }
 
@@ -42,8 +50,12 @@ public:
                     float lower_right_wheel_speed, float upper_right_wheel_speed, 
                     float kick_speed_x, float kick_speed_y, bool spinner) {
         grSim_Packet packet;
+
+        
         packet.mutable_commands()->set_isteamyellow(is_team_yellow);
         packet.mutable_commands()->set_timestamp(0.0);
+
+        
 
         grSim_Robot_Command* command = packet.mutable_commands()->add_robot_commands();
         command->set_id(id);
@@ -57,8 +69,11 @@ public:
         command->set_kickspeedz(kick_speed_y);
         command->set_spinner(spinner);
 
-        packet.SerializeToString(&to_send);
+
+        char to_send[256];
+        packet.SerializeToArray(to_send, packet.ByteSizeLong());
         socket->send_to(asio::buffer(to_send), *endpoint);
+        
     }
 };
 
@@ -71,10 +86,13 @@ int main() {
     ip::udp::endpoint ep(ip::address::from_string("127.0.0.1"), 20011);
     GrSim_Console console(service, ep);
 
+
     while(1) {
-        console.send_command(false, 2, 100, 100, 100, 100, 0, 0, false);
+        console.send_command(false, 2, 1000, -1000, -1000, 1000, 0, 0, false);
+        delay(10);
     }
 
 
     return 0;
 }
+
