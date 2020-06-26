@@ -22,8 +22,8 @@ PROTO_SRC = $(wildcard $(PROTOBUF)/*pb.cc)
 PROTODEF_SRC = $(wildcard $(PROTO)/*.proto)
 
 ### compiler and compiling flags
-COMPILER = g++
-#COMPILER = clang++ -Qunused-arguments
+#COMPILER = g++
+COMPILER = clang++ -Qunused-arguments
 CPP_STANDARD = -std=c++17
 BOOST_LIB = -lboost_system -lboost_thread -lpthread 
 PROTO_LIB = -L/usr/local/lib -lprotobuf
