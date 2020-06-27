@@ -80,14 +80,39 @@ public:
             socket->send_to(asio::buffer(to_send), *ep);
         }
         catch (std::exception& e) {
+            // To-do : Exception Handling
             std::cout << "[Exception] " << e.what() << std::endl;
         }
     }
 };
 
 
+class Location_Vector {
+public: 
+    float x; // horizontal from side view
+    float y; // vertical from side view
+    float z; // orientation
+    Location_Vector() : x(0.00), y(0.00), z(0.00) {}
+    Location_Vector(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
+    friend ostream& operator<<(ostream& os, const Location_Vector& lv)
+    {
+        os << "<" << lv.x << ", " 
+                  << lv.y << ", " 
+                  << lv.z << ">";
+        return os;
+    }
+};
+
+const int NUM_ROBOTS = 6;
+Location_Vector blue_loc_vecs[NUM_ROBOTS];
+Location_Vector yellow_loc_vecs[NUM_ROBOTS]; 
+
+
 class GrSim_Vision {
     static const unsigned int BUF_SIZE = 100000;
+    static constexpr const char* LOCAL_HOST = "127.0.0.1";
+    static const int BLUE = 0;
+    static const int YELLOW = 1;
     typedef ip::udp udp;
     typedef boost::shared_ptr<ip::udp::socket> socket_ptr; // smart pointer(no need to mannually deallocate
     typedef boost::shared_ptr<boost::array<char, BUF_SIZE>> buffer_array_ptr;
@@ -97,6 +122,7 @@ private:
     socket_ptr socket;
     buffer_array_ptr receive_buffer; 
     udp::endpoint *local_listen_ep;
+    boost::mutex mu;
     
 public:
     GrSim_Vision(io_service& io_srvs, udp::endpoint& endpoint) {
@@ -104,7 +130,7 @@ public:
         this->ep = &endpoint;
         this->receive_buffer = buffer_array_ptr(new boost::array<char, BUF_SIZE>());
         this->socket = socket_ptr(new udp::socket(io_srvs));
-        this->local_listen_ep = new udp::endpoint(ip::address::from_string("127.0.0.1"), 10020);
+        this->local_listen_ep = new udp::endpoint(ip::address::from_string(LOCAL_HOST), endpoint.port());
         socket->open(endpoint.protocol());
         socket->bind(endpoint);
         socket->set_option(udp::socket::reuse_address(true));
@@ -118,28 +144,51 @@ public:
         size_t num_bytes_received;
         std::string packet_string;
         SSL_WrapperPacket packet;
-        SSL_DetectionFrame detection;
-        google::protobuf::RepeatedPtrField<SSL_DetectionRobot> *blue_robots;
+        google::protobuf::RepeatedPtrField<SSL_DetectionRobot> *blue_robots, *yellow_robots;
         try {
             num_bytes_received = socket->receive_from(asio::buffer(*receive_buffer), *ep);
             packet_string = std::string(receive_buffer->begin(), 
                                           receive_buffer->begin() + num_bytes_received);
-            cout << packet_string.size() << endl;
+    
             packet.ParseFromString(packet_string);
-            detection = packet.detection();
-            blue_robots = detection.mutable_robots_blue();
-
-            for(auto& bot : *blue_robots) {
-                cout << "ID[" << bot.robot_id() << "] "
-                     << "orien[" << bot.orientation() << "] "
-                     << "<x,y>: (" << bot.x() << ", " << bot.y() << ")"
-                     << endl;
-            }
+            
+            publish_robots_vinfo(packet.detection().robots_blue(), BLUE);
+            publish_robots_vinfo(packet.detection().robots_yellow(), YELLOW);
 
         }
         catch (std::exception& e) {
+            // To-do : Exception Handling
             std::cout << "[Exception] " << e.what() << std::endl;
         }
+    }
+
+    void publish_robots_vinfo(const google::protobuf::RepeatedPtrField<SSL_DetectionRobot>& robots,
+                             const int team_color) {
+        // To-do : ROS pub/sub
+        for(auto& bot : robots) {
+            mu.lock();
+            if(team_color == BLUE) {
+                blue_loc_vecs[bot.robot_id()] = Location_Vector(bot.pixel_x(), bot.pixel_y(), bot.orientation());
+                // print_robot_vinfo(bot); // for debugging
+            }
+            if(team_color == YELLOW) {
+                yellow_loc_vecs[bot.robot_id()] = Location_Vector(bot.x(), bot.y(), bot.orientation());
+                // print_robot_vinfo(bot); // for debugging
+            }
+            mu.unlock();
+        }
+    }
+
+
+
+
+    static void print_robot_vinfo(const SSL_DetectionRobot& robot) {
+        // To-do : format string alignment
+        std::cout << "ID[" << robot.robot_id() << "] "
+                  << "[<x,y>:(" << robot.x() << ", " << robot.y() << ")]"
+                  << "orien[" << robot.orientation() << "] "
+                  << "confidence[" << robot.confidence() << "]"
+                  << std::endl;
     }
 
    
@@ -164,8 +213,10 @@ int main() {
     });
 
     while(1) {
-        console.send_command(false, 2, 50, -50, -50, 50, 0, 0, false);
-        delay(100);
+        console.send_command(false, 2, 20, 20, 20, 20, 0, 0, false);
+        delay(10);
+        cout << blue_loc_vecs[2] << " " << yellow_loc_vecs[2]<< endl;
+
     }
 
 
