@@ -26,10 +26,12 @@ PROTODEF_SRC = $(wildcard $(PROTO)/*.proto)
 COMPILER = clang++ -Qunused-arguments
 CPP_STANDARD = -std=c++17
 BOOST_LIB = -lboost_system -lboost_thread -lpthread 
+SCI_MATH_LIB = -larmadillo
 PROTO_LIB = -L/usr/local/lib -lprotobuf
 
 ### concatenate all flags
-FLAGS = $(CPP_STANDARD) $(CPP_INC) $(PROTO_INC) $(BOOST_LIB) $(PROTO_LIB)
+FLAGS =  $(CPP_STANDARD) $(CPP_INC) $(PROTO_INC) $(BOOST_LIB)
+FLAGS += $(PROTO_LIB) $(SCI_MATH_LIB)
 
 
 

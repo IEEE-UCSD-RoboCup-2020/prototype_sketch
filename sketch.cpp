@@ -1,4 +1,5 @@
 #include <iostream>
+#include <armadillo>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/thread/thread.hpp>
@@ -17,6 +18,7 @@
 
 
 using namespace std;
+using namespace arma;
 using namespace boost;
 using namespace boost::asio;
 using byte = unsigned char;
@@ -87,25 +89,19 @@ public:
 };
 
 
-class Location_Vector {
-public: 
-    float x; // horizontal from side view
-    float y; // vertical from side view
-    float z; // orientation
-    Location_Vector() : x(0.00), y(0.00), z(0.00) {}
-    Location_Vector(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
-    friend ostream& operator<<(ostream& os, const Location_Vector& lv)
-    {
-        os << "<" << lv.x << ", " 
-                  << lv.y << ", " 
-                  << lv.z << ">";
-        return os;
-    }
-};
+
+
+ostream& operator<<(ostream& os, const vec& lv)
+{
+    os << "<" << lv[0] << ", " 
+                << lv[1] << ", " 
+                << lv[2] << ">";
+    return os;
+}
 
 const int NUM_ROBOTS = 6;
-Location_Vector blue_loc_vecs[NUM_ROBOTS];
-Location_Vector yellow_loc_vecs[NUM_ROBOTS]; 
+vec blue_loc_vecs[NUM_ROBOTS];
+vec yellow_loc_vecs[NUM_ROBOTS]; 
 
 
 class GrSim_Vision {
@@ -168,11 +164,11 @@ public:
         for(auto& bot : robots) {
             mu.lock();
             if(team_color == BLUE) {
-                blue_loc_vecs[bot.robot_id()] = Location_Vector(bot.pixel_x(), bot.pixel_y(), bot.orientation());
+                blue_loc_vecs[bot.robot_id()] = {bot.pixel_x(), bot.pixel_y(), bot.orientation()};
                 // print_robot_vinfo(bot); // for debugging
             }
             if(team_color == YELLOW) {
-                yellow_loc_vecs[bot.robot_id()] = Location_Vector(bot.x(), bot.y(), bot.orientation());
+                yellow_loc_vecs[bot.robot_id()] = {bot.x(), bot.y(), bot.orientation()};
                 // print_robot_vinfo(bot); // for debugging
             }
             mu.unlock();
